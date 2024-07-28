@@ -29,6 +29,13 @@ export interface BundlingOptions extends DockerRunOptions {
   readonly assetExcludes?: string[];
 
   /**
+   * List of file patterns to include when copying assets from source for bundling.
+   *
+   * @default - Empty list
+   */
+  readonly assetIncludes?: string[];
+
+  /**
    * Output path suffix: the suffix for the directory into which the bundled output is written.
    *
    * @default - 'python' for a layer, empty string otherwise.

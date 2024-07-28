@@ -101,6 +101,31 @@ test('Bundling a function with requirements.txt using assetExcludes', () => {
   expect(files).toContain('requirements.txt');
 });
 
+test('Bundling a function with requirements.txt using assetIncludes', () => {
+  const entry = path.join(__dirname, 'lambda-handler');
+  const assetCode = Bundling.bundle({
+    entry: entry,
+    runtime: Runtime.PYTHON_3_7,
+    architecture: Architecture.X86_64,
+    assetIncludes: ['.ignorelist'],
+  });
+
+  // Correctly bundles
+  expect(Code.fromAsset).toHaveBeenCalledWith(entry, expect.objectContaining({
+    bundling: expect.objectContaining({
+      command: [
+        'bash', '-c',
+        "rsync -rLv --include='.ignorelist' /asset-input/ /asset-output && cd /asset-output && python -m pip install -r requirements.txt -t /asset-output",
+      ],
+    }),
+  }));
+
+  const files = fs.readdirSync(assetCode.path);
+  expect(files).toContain('index.py');
+  expect(files).toContain('requirements.txt');
+  expect(files).toContain('.ignorelist');
+});
+
 test('Bundling Python 2.7 with requirements.txt installed', () => {
   const entry = path.join(__dirname, 'lambda-handler');
   Bundling.bundle({
@@ -234,6 +259,34 @@ test('Bundling a function with pipenv dependencies with assetExcludes', () => {
   expect(files).toContain('.ignorefile');
 });
 
+test('Bundling a function with pipenv dependencies with assetIncludes', () => {
+  const entry = path.join(__dirname, 'lambda-handler-pipenv');
+
+  const assetCode = Bundling.bundle({
+    entry: path.join(entry, '.'),
+    runtime: Runtime.PYTHON_3_9,
+    architecture: Architecture.X86_64,
+    outputPathSuffix: 'python',
+    assetIncludes: ['.ignorefile'],
+  });
+
+  expect(Code.fromAsset).toHaveBeenCalledWith(entry, expect.objectContaining({
+    bundling: expect.objectContaining({
+      command: [
+        'bash', '-c',
+        "rsync -rLv --include='.ignorefile' /asset-input/ /asset-output/python && cd /asset-output/python && PIPENV_VENV_IN_PROJECT=1 pipenv requirements > requirements.txt && rm -rf .venv && python -m pip install -r requirements.txt -t /asset-output/python",
+      ],
+    }),
+  }));
+
+  const files = fs.readdirSync(assetCode.path);
+  expect(files).toContain('index.py');
+  expect(files).toContain('Pipfile');
+  expect(files).toContain('Pipfile.lock');
+  // Contains hidden files.
+  expect(files).toContain('.ignorefile');
+});
+
 test('Bundling a function with poetry dependencies', () => {
   const entry = path.join(__dirname, 'lambda-handler-poetry');
 
@@ -283,6 +336,28 @@ test('Bundling a function with poetry and assetExcludes', () => {
 
 });
 
+test('Bundling a function with poetry and assetIncludes', () => {
+  const entry = path.join(__dirname, 'lambda-handler-poetry');
+
+  Bundling.bundle({
+    entry: path.join(entry, '.'),
+    runtime: Runtime.PYTHON_3_9,
+    architecture: Architecture.X86_64,
+    outputPathSuffix: 'python',
+    assetIncludes: ['.ignorefile'],
+  });
+
+  expect(Code.fromAsset).toHaveBeenCalledWith(entry, expect.objectContaining({
+    bundling: expect.objectContaining({
+      command: [
+        'bash', '-c',
+        "rsync -rLv --include='.ignorefile' /asset-input/ /asset-output/python && cd /asset-output/python && poetry export --without-hashes --with-credentials --format requirements.txt --output requirements.txt && python -m pip install -r requirements.txt -t /asset-output/python",
+      ],
+    }),
+  }));
+
+});
+
 test('Bundling a function with poetry and no assetExcludes', () => {
   const entry = path.join(__dirname, 'lambda-handler-poetry');
 
@@ -298,6 +373,26 @@ test('Bundling a function with poetry and no assetExcludes', () => {
       command: [
         'bash', '-c',
         expect.not.stringContaining('--exclude'),
+      ],
+    }),
+  }));
+});
+
+test('Bundling a function with poetry and no assetIncludes', () => {
+  const entry = path.join(__dirname, 'lambda-handler-poetry');
+
+  Bundling.bundle({
+    entry: path.join(entry, '.'),
+    runtime: Runtime.PYTHON_3_9,
+    architecture: Architecture.X86_64,
+    outputPathSuffix: 'python',
+  });
+
+  expect(Code.fromAsset).toHaveBeenCalledWith(entry, expect.objectContaining({
+    bundling: expect.objectContaining({
+      command: [
+        'bash', '-c',
+        expect.not.stringContaining('--include'),
       ],
     }),
   }));
